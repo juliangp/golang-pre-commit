@@ -10,6 +10,12 @@
   files: '\.scala$'
   language: 'script'
   description: This hook checks the copyright and fails if the copyright does not exist or is not up to date.
+- id: check-python-copyright
+  name: Check copyright in Python files
+  entry: copyright-check.sh py
+  files: '\.py$'
+  language: 'script'
+  description: This hook checks the copyright and fails if the copyright does not exist or is not up to date.
 - id: go-fmt
   name: go fmt
   entry: go-format.sh
