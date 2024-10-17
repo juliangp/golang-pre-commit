@@ -9,6 +9,7 @@ The following ids can be used:
 
    1. `check-go-copyright` - this will check the copyright of go files.
    1. `check-scala-copyright` - this will check the copyright of Scala files.
+   1. `check-python-copyright` - this will check the copyright of Python files.
 
 The copyright script will check the files that are passed in by `pre-commit`,
 if the file list is empty then it will check locally modified files, which it does as shown below:
