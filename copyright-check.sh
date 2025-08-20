@@ -2,13 +2,21 @@
 
 # This will try to verify the copyrights for the given file extension.
 
+# set -x
+
 FILE_EXT=$1
 shift
+
+verbose=false
 
 FILES=
 
 while [[ $# -gt 0 ]]; do
-  FILES="$1 ${FILES}"
+  if [[ "$1" == "-v" ]]; then
+    verbose=true
+  else
+    FILES="$1 ${FILES}"
+  fi
   shift
   continue
 done
@@ -32,19 +40,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
-# git fetch --unshallow &> /dev/null
-
 commitYear=$(date +'%Y')
 
 declare -a fileextensions=("${FILE_EXT}") # ("go")
-
-#declare -a ignore=()
-#if [ -f .copyrightignore ]; then
-#  IFS=$'\n' read -d '' -r -a ignore < .copyrightignore
-#fi
-
-# echo "Ignored files: "
-# for e in "${ignore[@]}"; do echo "    - $e"; done
 
 function should_check() {
   local filename=$(basename "$1")
@@ -63,33 +61,38 @@ function first_creation_date() {
 }
 
 function get_creation_year() {
-  # get the file creation date from git if not running in Travis
-  if [[ -z "$TRAVIS" ]]; then
-    local creationDate=$(first_creation_date $1)
-    # echo "Got creation date $creationDate for file $1"
-    echo ${creationDate%%-*}
-  else
-    # echo "Using creation date $copyrightYearCreate read from file $1"
-    echo $2
-  fi
+  # get the file creation date from git
+  local creationDate=$(first_creation_date $1)
+  # echo "Got creation date $creationDate for file $1"
+  echo ${creationDate%%-*}
 }
 
-fail="false"
+failures="false"
 
 # just check the files that are modified
 for filename in ${FILES}; do
-  # echo -e "Checking file $filename"
   should_check "$filename"
   if [[ $? -eq 0 ]]; then
-    # we use the current year as the commit date because we are committing now
-    # commitDate=$(git log -1 --format="%cd" --date=short -- $filename)
-    # commitYear=${commitDate%%-*}
+    fail="false"
+
+    commitDate=$(git log -1 --format="%cd" --date=short -- $filename)
+    commitYear=${commitDate%%-*}
+
+    creationYear=$(get_creation_year $filename $copyrightYearCreate)
+    if [[ "$creationYear" == "" ]]; then
+      creationYear=$commitYear
+    fi
+
+    if [[ "${verbose}" == "true" ]]; then
+      echo -e "Checking file $filename - creation year ${creationYear} - commit year ${commitYear} (from git)"
+    fi
 
     copyrightYear=$(cat $filename | grep -m1 "Copyright IBM" | sed -En "s/.*Copyright IBM Corp\. ([0-9]+, ){0,1}([0-9]+)\. All Rights Reserved..*$/\2/p")
     if [ -z "${copyrightYear}" ]; then
       echo -e "${RED}Copyright missing in ${filename}${NC}" >&2
       # no need to do anything else
       fail="true"
+      failures="true"
     else
       copyrightYearCreate=$(cat $filename | grep -m1 "Copyright IBM" | sed -En "s/.*Copyright IBM Corp\. (([0-9]+), ){0,1}([0-9]+)\. All Rights Reserved..*$/\2/p")
       if [ -z "${copyrightYearCreate}" ]; then
@@ -101,31 +104,31 @@ for filename in ${FILES}; do
           echo -e "${RED}Copyright needs to be updated for: ${filename}${NC}" >&2
           echo "Created date: ${copyrightYearCreate} should not be the same as the commited date: ${copyrightYear}"
           fail="true"
+          failures="true"
         fi
       fi
     fi
 
     if [[ "$fail" == "false" ]]; then
-      creationYear=$(get_creation_year $filename $copyrightYearCreate)
-      if [[ "$creationYear" == "" ]]; then
-        creationYear=$commitYear
+      if [[ "${verbose}" == "true" ]]; then
+        echo -e "Read file $filename - creation year ${copyrightYearCreate} - commit year ${copyrightYear} (from copyrright)"
       fi
       if [[ "$commitYear" != "$copyrightYear" ]]; then
         echo -e "${RED}Copyright needs to be updated for: ${filename}${NC}" >&2
         echo "Committed: ${commitYear} and written as ${copyrightYear}. Created: ${creationYear} and written as ${copyrightYearCreate}"
-        fail="true"
+        failures="true"
       else
         if [[ "$creationYear" != "$copyrightYearCreate" ]]; then
           echo -e "${RED}Copyright needs to be updated for: ${filename}${NC}" >&2
           echo "Committed: ${commitYear} and written as ${copyrightYear}. Created: ${creationYear} and written as ${copyrightYearCreate}"
-          fail="true"
+          failures="true"
         fi
       fi
     fi
   fi
 done
 
-if [[ "$fail" == "true" ]]; then
+if [[ "$failures" == "true" ]]; then
   echo -e "\n${RED}Correct copyrights${NC}"
   exit 1
 else
