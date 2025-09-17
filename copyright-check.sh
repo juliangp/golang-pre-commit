@@ -40,7 +40,11 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
-commitYear=$(date +'%Y')
+currentYear=$(date +'%Y')
+if [[ "${currentYear}" == "" ]]; then
+  echo -e "${RED}Failed to get the current year from 'date'${NC}" >&2
+  exit 2
+fi
 
 declare -a fileextensions=("${FILE_EXT}") # ("go")
 
@@ -77,6 +81,9 @@ for filename in ${FILES}; do
 
     commitDate=$(git log -1 --format="%cd" --date=short -- $filename)
     commitYear=${commitDate%%-*}
+    if [[ "${commitYear}" == "" ]]; then
+      commitYear=${currentYear}
+    fi
 
     creationYear=$(get_creation_year $filename $copyrightYearCreate)
     if [[ "$creationYear" == "" ]]; then
@@ -114,12 +121,12 @@ for filename in ${FILES}; do
         echo -e "Read file $filename - creation year ${copyrightYearCreate} - commit year ${copyrightYear} (from copyrright)"
       fi
       if [[ "$commitYear" != "$copyrightYear" ]]; then
-        echo -e "${RED}Copyright needs to be updated for: ${filename}${NC}" >&2
+        echo -e "${RED}Copyright needs to be updated for committed year: ${filename}${NC}" >&2
         echo "Committed: ${commitYear} and written as ${copyrightYear}. Created: ${creationYear} and written as ${copyrightYearCreate}"
         failures="true"
       else
         if [[ "$creationYear" != "$copyrightYearCreate" ]]; then
-          echo -e "${RED}Copyright needs to be updated for: ${filename}${NC}" >&2
+          echo -e "${RED}Copyright needs to be updated for creation year: ${filename}${NC}" >&2
           echo "Committed: ${commitYear} and written as ${copyrightYear}. Created: ${creationYear} and written as ${copyrightYearCreate}"
           failures="true"
         fi
