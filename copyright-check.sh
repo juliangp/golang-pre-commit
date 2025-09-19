@@ -85,6 +85,10 @@ for filename in ${FILES}; do
       commitYear=${currentYear}
     fi
 
+    if [[ "$commitYear" -lt "$currentYear" ]]; then
+      git diff --quiet -- "$filename" || commitYear=$currentYear
+    fi
+
     creationYear=$(get_creation_year $filename $copyrightYearCreate)
     if [[ "$creationYear" == "" ]]; then
       creationYear=$commitYear
